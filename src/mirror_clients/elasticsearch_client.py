@@ -6,8 +6,6 @@ from elasticsearch_async import AsyncElasticsearch
 LOG = logging.getLogger('elasticsearch_client')
 
 ISO_DATETIME = '%Y-%m-%dT%H:%M:%S.%f'
-INDEX = 'procedures'
-TS_INDEX = 'procedures_ts'
 
 _db = None
 
@@ -20,12 +18,11 @@ def db(client_url):
 
 
 class ElasticSearchClient:
-    index = INDEX
-    ts_index = TS_INDEX
-
-    def __init__(self, client_url, protocol):
+    def __init__(self, client_url, client_namespace, protocol):
         self.db = db(client_url)
         self._protocol = protocol
+        self.index = client_namespace
+        self.ts_index = f'{client_namespace}_ts'
 
     async def _save_timestamp(self, _id, ts):
         if not ts:
@@ -49,7 +46,6 @@ class ElasticSearchClient:
 
     async def upsert(self, data, ts):
         _id = data.pop('_id')
-        # print(data)
         await self.db.index(index=self.index, id=_id, body=data)
         await self._save_timestamp(_id, ts)
 

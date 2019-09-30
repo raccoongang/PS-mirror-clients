@@ -27,8 +27,8 @@ class MongoMirrorRequest:
     IDS_SINCE_TIMESTAMP = 'ids-since-timestamp-request'
 
 
-async def sync(mirror_url, client_url, client_name, protocol):
-    client = CLIENTS[client_name](client_url, protocol)
+async def sync(mirror_url, client_url, client_name, client_namespace, protocol):
+    client = CLIENTS[client_name](client_url, client_namespace, protocol)
     session = aiohttp.ClientSession()
 
     operation_mapping = {
@@ -61,6 +61,7 @@ def _handle_args():
     parser.add_argument('--mirror_url', '-m', help="Mirror server url", type=str, required=True)
     parser.add_argument('--client_url', '-u', help="Client db url", type=str, required=True)
     parser.add_argument('--client_name', '-n', help="Client name [mongodb/elasticsearch]", type=str, required=True)
+    parser.add_argument('--client_namespace', '-ns', help="Client [db.collection/collection]", type=str, required=True)
     parser.add_argument('--protocol', '-p', help="Protocol [full/simple]", type=str, required=True)
     return parser.parse_args()
 
