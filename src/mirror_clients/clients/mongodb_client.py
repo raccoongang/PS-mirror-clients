@@ -11,6 +11,7 @@ LOG = logging.getLogger('mongodb_client')
 
 
 class MongoClient(FullMirrorClient):
+    client_name = 'mongodb'
 
     def __init__(self, client_url, client_namespace):
         client_db, collection = utils.namespace_to_db_collection(client_namespace)

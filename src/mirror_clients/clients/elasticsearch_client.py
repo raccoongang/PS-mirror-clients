@@ -11,6 +11,7 @@ ISO_DATETIME = '%Y-%m-%dT%H:%M:%S.%f'
 
 
 class ElasticSearchClient(FullMirrorClient):
+    client_name = 'elasticsearch'
 
     def __init__(self, client_url, client_namespace):
         self.db = self.__init_db(client_url)
