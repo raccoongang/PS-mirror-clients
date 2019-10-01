@@ -4,13 +4,18 @@ import json
 
 import aiohttp
 
+from mirror_clients.base import SimpleMirrorClient, FullMirrorClient
 from mirror_clients.elasticsearch_client import ElasticSearchClient
 from mirror_clients.mongodb_client import MongoClient
 
-CLIENTS = {
-    'mongodb': MongoClient,
-    'elasticsearch': ElasticSearchClient
-}
+CLIENTS = {}
+
+
+def _update_client_mapping():
+    global CLIENTS
+    client_list = SimpleMirrorClient.__subclasses__() + FullMirrorClient.__subclasses__()
+    for sub_cls in client_list:
+        CLIENTS[sub_cls.client_name] = sub_cls
 
 
 class MongoMirrorOperation:
@@ -66,6 +71,7 @@ def _handle_args():
 
 
 if __name__ == '__main__':
+    _update_client_mapping()
     args = _handle_args()
     loop = asyncio.get_event_loop()
     loop.run_until_complete(sync(**vars(args)))
