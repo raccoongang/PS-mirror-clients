@@ -7,28 +7,22 @@ LOG = logging.getLogger('elasticsearch_client')
 
 ISO_DATETIME = '%Y-%m-%dT%H:%M:%S.%f'
 
-_db = None
-
-
-def db(client_url):
-    global _db
-    if _db is None:
-        _db = AsyncElasticsearch(hosts=[client_url])
-    return _db
-
 
 class ElasticSearchClient:
     _protocol = 'full'
 
     def __init__(self, client_url, client_namespace):
-        self.db = db(client_url)
+        self.db = self.__init_db(client_url)
         self.index = client_namespace
-        self.ts_index = f'{client_namespace}_ts'
+        self.index_ts = f'{client_namespace}_ts'
+        
+    def __init_db(self, client_url):
+        return AsyncElasticsearch(hosts=[client_url])
 
     async def _save_timestamp(self, _id, ts):
         if not ts:
             ts = {}
-        await self.db.index(index=self.ts_index, id=_id, body=ts)
+        await self.db.index(index=self.index_ts, id=_id, body=ts)
 
     async def get_initial_point(self, **kwargs):
         response = await self.db.search(
@@ -67,7 +61,7 @@ class ElasticSearchClient:
 
     async def get_timestamp(self, **kwargs):
         response = await self.db.search(
-            index=self.ts_index,
+            index=self.index_ts,
             filter_path=['hits.hits._source'],
             body={
                 "size": 1,
