@@ -5,12 +5,12 @@ from bson import timestamp, ObjectId
 from motor import motor_asyncio
 
 from mirror_clients import utils
+from mirror_clients.base import FullMirrorClient
 
 LOG = logging.getLogger('mongodb_client')
 
 
-class MongoClient:
-    _protocol = 'full'
+class MongoClient(FullMirrorClient):
 
     def __init__(self, client_url, client_namespace):
         client_db, collection = utils.namespace_to_db_collection(client_namespace)
@@ -50,9 +50,6 @@ class MongoClient:
 
     async def noop(self, data, ts):
         LOG.info(f'data - {data}, ts - {ts}')
-
-    async def get_protocol(self, **kwargs):
-        return self._protocol
 
     async def get_timestamp(self, **kwargs):
         doc = await self.collection_ts.find_one({}, {'ts': 1, '_id': 0}, sort=[('ts', -1)])

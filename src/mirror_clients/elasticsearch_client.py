@@ -3,13 +3,14 @@ from datetime import datetime
 
 from elasticsearch_async import AsyncElasticsearch
 
+from mirror_clients.base import FullMirrorClient
+
 LOG = logging.getLogger('elasticsearch_client')
 
 ISO_DATETIME = '%Y-%m-%dT%H:%M:%S.%f'
 
 
-class ElasticSearchClient:
-    _protocol = 'full'
+class ElasticSearchClient(FullMirrorClient):
 
     def __init__(self, client_url, client_namespace):
         self.db = self.__init_db(client_url)
@@ -55,9 +56,6 @@ class ElasticSearchClient:
 
     async def noop(self, data, ts):
         LOG.info(f'data - {data}, ts - {ts}')
-
-    async def get_protocol(self, **kwargs):
-        return self._protocol
 
     async def get_timestamp(self, **kwargs):
         response = await self.db.search(
