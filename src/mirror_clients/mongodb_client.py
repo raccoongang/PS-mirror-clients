@@ -25,12 +25,13 @@ def db(client_url, client_db, collection_ts_name):
 
 
 class MongoClient:
-    def __init__(self, client_url, client_namespace, protocol):
+    _protocol = 'full'
+
+    def __init__(self, client_url, client_namespace):
         client_db, collection = utils.namespace_to_db_collection(client_namespace)
         self.collection = collection
         self.collection_ts = f'{collection}_ts'
         self.db = db(client_url, client_db, self.collection_ts)
-        self._protocol = protocol
 
     async def _save_timestamp(self, _id, ts):
         await self.db[self.collection_ts].replace_one({'_id': _id}, {'_id': _id, 'ts': ts}, upsert=True)

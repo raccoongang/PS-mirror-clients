@@ -18,9 +18,10 @@ def db(client_url):
 
 
 class ElasticSearchClient:
-    def __init__(self, client_url, client_namespace, protocol):
+    _protocol = 'full'
+
+    def __init__(self, client_url, client_namespace):
         self.db = db(client_url)
-        self._protocol = protocol
         self.index = client_namespace
         self.ts_index = f'{client_namespace}_ts'
 
