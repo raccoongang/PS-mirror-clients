@@ -5,8 +5,8 @@ import json
 import aiohttp
 
 from mirror_clients.base import SimpleMirrorClient, FullMirrorClient
-from mirror_clients.elasticsearch_client import ElasticSearchClient
-from mirror_clients.mongodb_client import MongoClient
+from mirror_clients.clients.elasticsearch_client import ElasticSearchClient
+from mirror_clients.clients.mongodb_client import MongoClient
 
 CLIENTS = {}
 
