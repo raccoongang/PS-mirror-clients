@@ -33,8 +33,8 @@ class MongoClient(FullMirrorClient):
         await self.collection_ts.replace_one({'_id': _id}, {'_id': _id, 'ts': ts}, upsert=True)
 
     async def get_initial_point(self, **kwargs):
-        doc = await self.collection.find_one({}, {'_last_modified': 1, '_id': 0}, sort=[('_last_modified', -1)])
-        return doc['_last_modified'] if doc else ''
+        doc = await self.collection.find_one({}, {'_lastModified': 1, '_id': 0}, sort=[('_lastModified', -1)])
+        return doc['_lastModified'] if doc else ''
 
     async def upsert(self, data, ts):
         await self.collection.replace_one({'_id': data['_id']}, data, upsert=True)

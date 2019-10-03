@@ -29,17 +29,17 @@ class ElasticSearchClient(FullMirrorClient):
     async def get_initial_point(self, **kwargs):
         response = await self.db.search(
             index=self.index,
-            filter_path=['hits.hits._source._last_modified'],
+            filter_path=['hits.hits._source._lastModified'],
             body={
                 "size": 1,
                 "sort": {
-                    "_last_modified": {
+                    "_lastModified": {
                         "order": "desc"
                     }
                 }
             })
 
-        return response['hits']['hits'][0]['_source']['_last_modified'] if response else ''
+        return response['hits']['hits'][0]['_source']['_lastModified'] if response else ''
 
     async def upsert(self, data, ts):
         _id = data.pop('_id')
@@ -82,6 +82,6 @@ class ElasticSearchClient(FullMirrorClient):
         ts = response_data.get('ts')
         if ts:
             response_data['ts'] = {'time': ts[0], 'inc': ts[1]}
-        if '_last_modified' in response_data['data']:
-            last_modified = response_data['data']['_last_modified']
-            response_data['data']['_last_modified'] = datetime.strptime(last_modified, ISO_DATETIME)
+        if '_lastModified' in response_data['data']:
+            last_modified = response_data['data']['_lastModified']
+            response_data['data']['_lastModified'] = datetime.strptime(last_modified, ISO_DATETIME)
