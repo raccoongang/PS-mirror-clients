@@ -1,0 +1,40 @@
+stages:
+  - build
+  - publish
+
+image: registry-gitlab.raccoongang.com/aliens/prozorro.sale/auction/build-box
+
+variables:
+  MIRROR_CLIENT_IMAGE: "prozorro_sale/mirror_clients:$CI_COMMIT_SHORT_SHA"
+  MIRROR_CLIENT_IMAGE_FULL_NAME: registry-gitlab.raccoongang.com/aliens/prozorro.sale/mirror-clients
+
+
+build-new-image:
+  stage: build
+  tags:
+    - kube
+  script: docker build -t $MIRROR_CLIENT_IMAGE .
+  only:
+    - master
+
+push-to-registry:
+  stage: publish
+  tags:
+    - kube
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker tag $MIRROR_CLIENT_IMAGE $MIRROR_CLIENT_IMAGE_FULL_NAME
+    - docker push $MIRROR_CLIENT_IMAGE_FULL_NAME
+  only:
+    - master
+
+push-tagged-image:
+  stage: publish
+  tags:
+    - kube
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker tag $MIRROR_CLIENT_IMAGE $MIRROR_CLIENT_IMAGE_FULL_NAME:$CI_COMMIT_REF_SLUG
+    - docker push $MIRROR_CLIENT_IMAGE_FULL_NAME:$CI_COMMIT_REF_SLUG
+  only:
+    - tags
