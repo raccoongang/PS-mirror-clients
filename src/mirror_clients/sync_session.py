@@ -1,14 +1,19 @@
 import argparse
 import asyncio
 import json
+import os
+import logging
 
 import aiohttp
 
 from mirror_clients.base import SimpleMirrorClient, FullMirrorClient
 from mirror_clients.clients.elasticsearch_client import ElasticSearchClient
 from mirror_clients.clients.mongodb_client import MongoClient
+from aiohttp.client_exceptions import WSServerHandshakeError
 
 CLIENTS = {}
+CLIENT_AUTH_TOKEN = os.environ['AUTH_TOKEN']
+LOG = logging.getLogger('sync_session')
 
 
 def _update_client_mapping():
@@ -32,8 +37,7 @@ class MongoMirrorRequest:
     IDS_SINCE_TIMESTAMP = 'ids-since-timestamp-request'
 
 
-async def sync(mirror_url, client_url, client_name, client_namespace):
-    client = CLIENTS[client_name](client_url, client_namespace)
+async def sync(mirror_url, client):
     session = aiohttp.ClientSession()
 
     operation_mapping = {
@@ -47,7 +51,7 @@ async def sync(mirror_url, client_url, client_name, client_namespace):
         MongoMirrorOperation.NOOP: client.noop,
     }
 
-    async with session.ws_connect(mirror_url) as ws:
+    async with session.ws_connect(mirror_url, headers={'Authorization': CLIENT_AUTH_TOKEN}) as ws:
         async for msg in ws:
             print(f'Received {msg.data}')
             received_data = json.loads(msg.data)
@@ -74,4 +78,8 @@ if __name__ == '__main__':
     _update_client_mapping()
     args = _handle_args()
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(sync(**vars(args)))
+    sync_client = CLIENTS[args['client_name']](args['client_url'], args['client_namespace'])
+    try:
+        loop.run_until_complete(sync(mirror_url=args['mirror_url'], client=sync_client))
+    except WSServerHandshakeError as error:
+        LOG.exception(msg='Not authorized' if error.status == 403 else error.message)
