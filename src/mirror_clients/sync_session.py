@@ -65,6 +65,17 @@ async def sync(mirror_url, client):
                 await ws.send_json(received_data)
 
 
+async def sync_session(args):
+    sync_client = CLIENTS[args.client_name](args.client_url, args.client_namespace)
+    try:
+        await sync(mirror_url=args.mirror_url, client=sync_client)
+    except WSServerHandshakeError as error:
+        if error.status == 403:
+            LOG.warning('Not authorized')
+        else:
+            LOG.exception(error.message)
+
+
 def _handle_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mirror_url', '-m', help="Mirror server url", type=str, required=True)
@@ -76,10 +87,7 @@ def _handle_args():
 
 if __name__ == '__main__':
     _update_client_mapping()
-    args = _handle_args()
+    arguments = _handle_args()
     loop = asyncio.get_event_loop()
-    sync_client = CLIENTS[args['client_name']](args['client_url'], args['client_namespace'])
-    try:
-        loop.run_until_complete(sync(mirror_url=args['mirror_url'], client=sync_client))
-    except WSServerHandshakeError as error:
-        LOG.exception(msg='Not authorized' if error.status == 403 else error.message)
+    loop.run_until_complete(sync_session(arguments))
+
