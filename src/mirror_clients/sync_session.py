@@ -3,6 +3,8 @@ import asyncio
 import json
 import os
 import logging
+import signal
+from datetime import datetime
 
 import aiohttp
 
@@ -14,6 +16,7 @@ from aiohttp.client_exceptions import WSServerHandshakeError
 CLIENTS = {}
 CLIENT_AUTH_TOKEN = os.environ['AUTH_TOKEN']
 LOG = logging.getLogger('sync_session')
+STOP_RUNNING = False
 
 
 def _update_client_mapping():
@@ -52,14 +55,24 @@ async def sync(mirror_url, client):
     }
 
     async with session.ws_connect(mirror_url, headers={'Authorization': CLIENT_AUTH_TOKEN}) as ws:
+        start_time = datetime.now()
+        count = 0
+
         async for msg in ws:
-            print(f'Received {msg.data}')
+            if STOP_RUNNING:
+                return
+            count += 1
             received_data = json.loads(msg.data)
             data = received_data.copy()
             op_type = data.pop('type')
             await client.serialize_fields(data)
 
             result = await operation_mapping[op_type](**data)
+            if (datetime.now() - start_time).seconds >= 1:
+                LOG.info(f'Object per second - {count}')
+                count = 0
+                start_time = datetime.now()
+
             if result is not None:
                 received_data['data'] = result
                 await ws.send_json(received_data)
@@ -85,7 +98,22 @@ def _handle_args():
     return parser.parse_args()
 
 
+def stop_callback(signum, frame):
+    LOG.info('Received shutdown signal. Stopping client...')
+    global STOP_RUNNING
+    STOP_RUNNING = True
+
+
+def configure_signals():
+    signal.signal(signal.SIGTERM, stop_callback)
+    signal.signal(signal.SIGINT, stop_callback)
+
+
 if __name__ == '__main__':
+    configure_signals()
+    log_level = os.getenv('LOGGING_LEVEL', 'INFO')
+    logging.basicConfig(level=log_level)
+    LOG.info("Starting client")
     _update_client_mapping()
     arguments = _handle_args()
     loop = asyncio.get_event_loop()
