@@ -51,9 +51,10 @@ class MongoClient(FullMirrorClient):
 
     async def noop(self, data, ts):
         LOG.info(f'data - {data}, ts - {ts}')
+        await self._save_timestamp('noop', ts)
 
     async def get_timestamp(self, **kwargs):
-        doc = await self.collection_ts.find_one({}, {'ts': 1, '_id': 0}, sort=[('ts', -1)])
+        doc = await self.collection_ts.find_one({}, {'ts': 1, '_id': 0}, hint=[('ts', 1)], sort=[('ts', -1)])
         return [doc['ts'].time, doc['ts'].inc] if doc and doc['ts'] else ''
 
     async def get_ids_since_timestamp(self, data, ts):
