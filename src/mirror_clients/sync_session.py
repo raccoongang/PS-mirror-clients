@@ -86,6 +86,9 @@ def _handle_args():
 
 
 if __name__ == '__main__':
+    log_level = os.getenv('LOGGING_LEVEL', 'INFO')
+    logging.basicConfig(level=log_level)
+    LOG.info("Starting client")
     _update_client_mapping()
     arguments = _handle_args()
     loop = asyncio.get_event_loop()
