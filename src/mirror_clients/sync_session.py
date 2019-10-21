@@ -3,6 +3,7 @@ import asyncio
 import json
 import os
 import logging
+from datetime import datetime
 
 import aiohttp
 
@@ -52,14 +53,22 @@ async def sync(mirror_url, client):
     }
 
     async with session.ws_connect(mirror_url, headers={'Authorization': CLIENT_AUTH_TOKEN}) as ws:
+        start_time = datetime.now()
+        count = 0
+
         async for msg in ws:
-            print(f'Received {msg.data}')
+            count += 1
             received_data = json.loads(msg.data)
             data = received_data.copy()
             op_type = data.pop('type')
             await client.serialize_fields(data)
 
             result = await operation_mapping[op_type](**data)
+            if (datetime.now() - start_time).seconds >= 1:
+                LOG.info(f'Object per second - {count}')
+                count = 0
+                start_time = datetime.now()
+
             if result is not None:
                 received_data['data'] = result
                 await ws.send_json(received_data)
