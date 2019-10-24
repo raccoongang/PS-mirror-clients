@@ -30,16 +30,30 @@ class MongoClient(FullMirrorClient):
         await collection_ts.create_index('ts', sparse=True, background=True)
 
     async def _save_timestamp(self, _id, ts):
+        if not ts:
+            return
         ts = timestamp.Timestamp(*ts)
-        await self.collection_ts.replace_one({'_id': _id}, {'_id': _id, 'ts': ts}, upsert=True)
+        await self.collection_ts.replace_one(
+            {'_id': _id},
+            {'_id': _id, 'ts': ts},
+            upsert=True
+        )
 
     async def get_initial_point(self, **kwargs):
-        doc = await self.collection.find_one({}, {'_lastModified': 1, '_id': 0}, sort=[('_lastModified', -1)])
-        return doc['_lastModified'] if doc else ''
+        doc = await self.collection.find_one(
+            {},
+            {'_lastModified': 1, '_id': 0},
+            sort=[('_lastModified', -1)]
+        )
+        return doc['_lastModified'] if doc else None
 
     async def upsert(self, data, ts):
         data['_id'] = ObjectId(data['_id'])
-        await self.collection.replace_one({'_id': data['_id']}, data, upsert=True)
+        await self.collection.replace_one(
+            {'_id': data['_id']},
+            data,
+            upsert=True
+        )
         await self._save_timestamp(data['_id'], ts)
 
     async def delete(self, data, ts):
@@ -57,13 +71,14 @@ class MongoClient(FullMirrorClient):
         await self._save_timestamp('noop', ts)
 
     async def get_timestamp(self, **kwargs):
-        doc = await self.collection_ts.find_one({}, {'ts': 1, '_id': 0}, hint=[('ts', 1)], sort=[('ts', -1)])
-        return [doc['ts'].time, doc['ts'].inc] if doc and doc['ts'] else ''
+        doc = await self.collection_ts.find_one(
+            {},
+            {'ts': 1, '_id': 0},
+            hint=[('ts', 1)],
+            sort=[('ts', -1)]
+        )
+        return [doc['ts'].time, doc['ts'].inc] if doc and doc['ts'] else None
 
     async def get_ids_since_timestamp(self, data, ts):
         ts = timestamp.Timestamp(*ts)
         return [str(doc['_id']) async for doc in self.collection_ts.find({'ts': {'$gt': ts}}, {'ts': 0})]
-
-    @staticmethod
-    async def serialize_fields(response_data):
-        pass
