@@ -11,6 +11,12 @@ Client for synchronization data through Prozorro-sale Mirror
 mirror-clients supports Python 3.6+
 
 ### For implemented clients
+#### Initialize AUTH_TOKEN:
+Set up auth token as environment variable
+```bash
+export AUTH_TOKEN=auth_token
+```
+
 #### Build
 ```
 docker build -t mirror-clients .
