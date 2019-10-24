@@ -9,8 +9,7 @@ from datetime import datetime
 import aiohttp
 
 from mirror_clients.base import SimpleMirrorClient, FullMirrorClient
-from mirror_clients.clients.elasticsearch_client import ElasticSearchClient
-from mirror_clients.clients.mongodb_client import MongoClient
+from mirror_clients.clients import *
 from aiohttp.client_exceptions import WSServerHandshakeError
 
 CLIENTS = {}
@@ -93,7 +92,7 @@ def _handle_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mirror_url', '-m', help="Mirror server url", type=str, required=True)
     parser.add_argument('--client_url', '-u', help="Client db url", type=str, required=True)
-    parser.add_argument('--client_name', '-n', help="Client name [mongodb||elasticsearch]", type=str, required=True)
+    parser.add_argument('--client_name', '-n', help=f"Client name [{'|'.join(CLIENTS.keys())}]", type=str, required=True)
     parser.add_argument('--client_namespace', '-ns', help="Client namespace [db.collection||index]", type=str, required=True)
     return parser.parse_args()
 
