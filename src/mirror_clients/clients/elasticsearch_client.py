@@ -37,8 +37,10 @@ class ElasticSearchClient(FullMirrorClient):
                     }
                 }
             })
+        if not response:
+            return None
 
-        return response['hits']['hits'][0]['_source']['_lastModified'] if response else ''
+        return response['hits']['hits'][0]['_source']['_lastModified']
 
     async def upsert(self, data, ts):
         _id = data.pop('_id')
@@ -70,12 +72,14 @@ class ElasticSearchClient(FullMirrorClient):
                     }
                 }
             })
+        if not response:
+            return None
 
-        ts = response['hits']['hits'][0]['_source'] if response else None
-        return [ts['time'], ts['inc']] if ts else ''
+        ts = response['hits']['hits'][0]['_source']
+        return [ts['time'], ts['inc']]
 
     async def get_ids_since_timestamp(self, data, ts):
-        pass
+        return []
 
     @staticmethod
     async def serialize_fields(response_data):
