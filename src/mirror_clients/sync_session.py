@@ -93,7 +93,7 @@ def _handle_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mirror_url', '-m', help="Mirror server url", type=str, required=True)
     parser.add_argument('--client_url', '-u', help="Client db url", type=str, required=True)
-    parser.add_argument('--client_name', '-n', help="Client name [mongodb||elasticsearch]", type=str, required=True)
+    parser.add_argument('--client_name', '-n', help=f"Client name [{'|'.join(CLIENTS.keys())}]", type=str, required=True)
     parser.add_argument('--client_namespace', '-ns', help="Client namespace [db.collection||index]", type=str, required=True)
     return parser.parse_args()
 
@@ -118,4 +118,3 @@ if __name__ == '__main__':
     arguments = _handle_args()
     loop = asyncio.get_event_loop()
     loop.run_until_complete(sync_session(arguments))
-
