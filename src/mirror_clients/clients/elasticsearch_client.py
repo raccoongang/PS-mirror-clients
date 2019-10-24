@@ -17,7 +17,7 @@ class ElasticSearchClient(FullMirrorClient):
         self.db = self.__init_db(client_url)
         self.index = client_namespace
         self.index_ts = f'{client_namespace}_ts'
-        
+
     def __init_db(self, client_url):
         return AsyncElasticsearch(hosts=[client_url])
 

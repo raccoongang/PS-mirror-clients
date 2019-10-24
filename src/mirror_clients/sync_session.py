@@ -4,7 +4,9 @@ import json
 import os
 import logging
 import signal
+from enum import Enum
 from datetime import datetime
+import uvloop
 
 import aiohttp
 
@@ -16,7 +18,6 @@ from aiohttp.client_exceptions import WSServerHandshakeError
 CLIENTS = {}
 CLIENT_AUTH_TOKEN = os.environ['AUTH_TOKEN']
 LOG = logging.getLogger('sync_session')
-STOP_RUNNING = False
 
 
 def _update_client_mapping():
@@ -26,14 +27,14 @@ def _update_client_mapping():
         CLIENTS[sub_cls.client_name] = sub_cls
 
 
-class MongoMirrorOperation:
+class MongoMirrorOperation(Enum):
     UPSERT = 'upsert'
     UPDATE = 'update'
     DELETE = 'delete'
     NOOP = 'noop'
 
 
-class MongoMirrorRequest:
+class MongoMirrorRequest(Enum):
     PROTOCOL = 'protocol-request'
     TIMESTAMP = 'timestamp-request'
     INIT_POINT = 'init-point-request'
@@ -41,8 +42,6 @@ class MongoMirrorRequest:
 
 
 async def sync(mirror_url, client):
-    session = aiohttp.ClientSession()
-
     operation_mapping = {
         MongoMirrorRequest.PROTOCOL: client.get_protocol,
         MongoMirrorRequest.INIT_POINT: client.get_initial_point,
@@ -54,39 +53,55 @@ async def sync(mirror_url, client):
         MongoMirrorOperation.NOOP: client.noop,
     }
 
-    async with session.ws_connect(mirror_url, headers={'Authorization': CLIENT_AUTH_TOKEN}) as ws:
-        start_time = datetime.now()
-        count = 0
+    async with aiohttp.ClientSession() as session:
+        async with session.ws_connect(mirror_url, headers={'Authorization': CLIENT_AUTH_TOKEN}) as ws:
+            start_time = datetime.now()
+            count = 0
+            while True:
+                data = await ws.receive_json()
+                count += 1
+                # save original data to resend it back in response
+                request = data.copy()
 
-        async for msg in ws:
-            if STOP_RUNNING:
-                return
-            count += 1
-            received_data = json.loads(msg.data)
-            data = received_data.copy()
-            op_type = data.pop('type')
-            await client.serialize_fields(data)
+                op_type = data.pop('type')
+                try:
+                    op_type = MongoMirrorOperation(op_type)
+                except ValueError:
+                    op_type = MongoMirrorRequest(op_type)
 
-            result = await operation_mapping[op_type](**data)
-            if (datetime.now() - start_time).seconds >= 1:
-                LOG.info(f'Object per second - {count}')
-                count = 0
-                start_time = datetime.now()
+                result = await operation_mapping[op_type](**data)
+                if op_type in MongoMirrorRequest:
+                    request['data'] = result
+                    await ws.send_json(request)
 
-            if result is not None:
-                received_data['data'] = result
-                await ws.send_json(received_data)
+                if (datetime.now() - start_time).seconds >= 1:
+                    LOG.info(f'Object per second - {count}')
+                    count = 0
+                    start_time = datetime.now()
 
 
 async def sync_session(args):
     sync_client = CLIENTS[args.client_name](args.client_url, args.client_namespace)
+    task = asyncio.create_task(sync(mirror_url=args.mirror_url, client=sync_client))
+
+    def stop_callback(signum, frame):
+        LOG.info('Received shutdown signal. Stopping client...')
+        task.cancel()
+
+    signal.signal(signal.SIGTERM, stop_callback)
+    signal.signal(signal.SIGINT, stop_callback)
+
     try:
-        await sync(mirror_url=args.mirror_url, client=sync_client)
+        r = await task
+        r.result()
     except WSServerHandshakeError as error:
         if error.status == 403:
             LOG.warning('Not authorized')
         else:
             LOG.exception(error.message)
+    except asyncio.CancelledError:
+        LOG.exception('Caught error')
+        return
 
 
 def _handle_args():
@@ -98,23 +113,12 @@ def _handle_args():
     return parser.parse_args()
 
 
-def stop_callback(signum, frame):
-    LOG.info('Received shutdown signal. Stopping client...')
-    global STOP_RUNNING
-    STOP_RUNNING = True
-
-
-def configure_signals():
-    signal.signal(signal.SIGTERM, stop_callback)
-    signal.signal(signal.SIGINT, stop_callback)
-
-
 if __name__ == '__main__':
-    configure_signals()
     log_level = os.getenv('LOGGING_LEVEL', 'INFO')
     logging.basicConfig(level=log_level)
     LOG.info("Starting client")
     _update_client_mapping()
     arguments = _handle_args()
+    uvloop.install()
     loop = asyncio.get_event_loop()
     loop.run_until_complete(sync_session(arguments))
