@@ -17,13 +17,12 @@ class ElasticSearchClient(FullMirrorClient):
         self.db = self.__init_db(client_url)
         self.index = client_namespace
         self.index_ts = f'{client_namespace}_ts'
-        
+
     def __init_db(self, client_url):
         return AsyncElasticsearch(hosts=[client_url])
 
     async def _save_timestamp(self, _id, ts):
-        if not ts:
-            ts = {}
+        ts = {'time': ts[0], 'inc': ts[1]} if ts else {}
         await self.db.index(index=self.index_ts, id=_id, body=ts)
 
     async def get_initial_point(self, **kwargs):
@@ -38,8 +37,10 @@ class ElasticSearchClient(FullMirrorClient):
                     }
                 }
             })
+        if not response:
+            return None
 
-        return response['hits']['hits'][0]['_source']['_lastModified'] if response else ''
+        return response['hits']['hits'][0]['_source']['_lastModified']
 
     async def upsert(self, data, ts):
         _id = data.pop('_id')
@@ -57,6 +58,7 @@ class ElasticSearchClient(FullMirrorClient):
 
     async def noop(self, data, ts):
         LOG.info(f'data - {data}, ts - {ts}')
+        await self._save_timestamp('noop', ts)
 
     async def get_timestamp(self, **kwargs):
         response = await self.db.search(
@@ -70,18 +72,17 @@ class ElasticSearchClient(FullMirrorClient):
                     }
                 }
             })
+        if not response:
+            return None
 
-        ts = response['hits']['hits'][0]['_source'] if response else None
-        return [ts['time'], ts['inc']] if ts else ''
+        ts = response['hits']['hits'][0]['_source']
+        return [ts['time'], ts['inc']]
 
     async def get_ids_since_timestamp(self, data, ts):
-        pass
+        return []
 
     @staticmethod
     async def serialize_fields(response_data):
-        ts = response_data.get('ts')
-        if ts:
-            response_data['ts'] = {'time': ts[0], 'inc': ts[1]}
         if '_lastModified' in response_data['data']:
             last_modified = response_data['data']['_lastModified']
             response_data['data']['_lastModified'] = datetime.strptime(last_modified, ISO_DATETIME)
